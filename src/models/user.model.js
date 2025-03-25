@@ -33,12 +33,12 @@ const userSchema = new Schema(
     coverImage: {
       type: String, // cloudinaru url
     },
-    username: [
+    watchHistory: [
       {
-        type: Schema.Types.ObjectId,
-        ref: "Video",
-      },
-    ],
+          type: Schema.Types.ObjectId,
+          ref: "Video"
+      }
+  ],
     password: {
       type: "String",
       required: [true, "Password is necessary"],
