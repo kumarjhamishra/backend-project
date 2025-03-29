@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -350,8 +351,8 @@ const updateAvatar = asyncHandler(async (req, res) => {
   ).select("-password -refreshToken");
 
   return res
-  .status(200)
-  .json(new ApiResponse(200, user, "Avatar updated successfully"));
+    .status(200)
+    .json(new ApiResponse(200, user, "Avatar updated successfully"));
 });
 
 const updateCoverImage = asyncHandler(async (req, res) => {
@@ -381,14 +382,14 @@ const updateCoverImage = asyncHandler(async (req, res) => {
   ).select("-password -refreshToken");
 
   return res
-  .status(200)
-  .json(new ApiResponse(200, user, "Cover Image updated successfully"));
+    .status(200)
+    .json(new ApiResponse(200, user, "Cover Image updated successfully"));
 });
 
-const getUserChannelProfile = asyncHandler (async (req, res) => {
-  const {username} = req.params
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
 
-  if(!username?.trim()){
+  if (!username?.trim()) {
     throw new ApiError(400, "Username is missing");
   }
 
@@ -397,8 +398,8 @@ const getUserChannelProfile = asyncHandler (async (req, res) => {
     // first pipeline
     {
       $match: {
-        username: username?.toLowerCase()
-      }
+        username: username?.toLowerCase(),
+      },
     },
     // now got the username to match, and now we will lookup with this username in the subscription db
     // second pipeline
@@ -409,42 +410,42 @@ const getUserChannelProfile = asyncHandler (async (req, res) => {
         from: "subscriptions",
         localField: "_id",
         foreignField: "channel",
-        as: "subscribers"
-      }
+        as: "subscribers",
+      },
     },
 
     // third pipeline to find the number of channel this channel/user has subscribed
     {
-      $lookup:{
+      $lookup: {
         from: "subscriptions",
         localField: "_id",
         foreignField: "subscriber",
-        as: "subscribedTo"
-      }
+        as: "subscribedTo",
+      },
     },
 
     // fourth pipeline to add additional feilds
     {
-      $addFields:{
+      $addFields: {
         // count the all the subscribers of our channel
         subscriberCount: {
           // add $ bcoz it's a feild
-          $size: "$subscribers"
+          $size: "$subscribers",
         },
         channelsSubscribedToCount: {
-          $size: "$subscribedTo"
+          $size: "$subscribedTo",
         },
         // if we haven't subsribed to the channel it will show "subscribe" button
         // and if we have then it will show "subscribed button"
         isSubscribed: {
           // check if i am in the subscribers list of the channel or not
           $cond: {
-            if: {$in : [req.user?._id, "$subscribers.subscriber"]},
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
             then: true,
-            else: false
-          }
-        }
-      }
+            else: false,
+          },
+        },
+      },
     },
 
     // another pipeline to project only selective feilds
@@ -458,22 +459,78 @@ const getUserChannelProfile = asyncHandler (async (req, res) => {
         isSubscribed: 1,
         avatar: 1,
         coverImage: 1,
-        email: 1
-      }
-    }
-
-  ])
+        email: 1,
+      },
+    },
+  ]);
   // this will return the output in array form
 
-  if(!channel?.length){
-    throw new ApiError(404, "channel does not exists")
+  if (!channel?.length) {
+    throw new ApiError(404, "channel does not exists");
   }
 
   return res
-  .status(200)
-  .json(new ApiResponse(200, channel[0], "user channel fetched successfully")) // only the first object is of use
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "user channel fetched successfully")
+    ); // only the first object is of use
+});
 
-})
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    // first pipeline
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    // this pipeline to lookup for this id
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        // nested pipeline
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+
+              pipeline: [
+                // to send the selective data
+                {
+                  $project: {
+                    fullname: 1,
+                    username: 1,
+                    avatar: 1
+                  }
+                }
+              ]
+            },
+          },
+
+          // this pipeline for improving the structure of the response which will be of owner in the form of array
+          {
+            $addFields: {
+              //overwriting existing feild owner
+              owner: {
+                $first: "$owner"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ])
+
+  return res
+  .status(200)
+  .json(new ApiResponse(200, user[0].watchHistory, "watch history fetched successfully"))
+});
 
 export {
   registerUser,
@@ -486,5 +543,6 @@ export {
   generateAccessAndRefreshToken,
   updateAvatar,
   updateCoverImage,
-  getUserChannelProfile
+  getUserChannelProfile,
+  getWatchHistory,
 };
