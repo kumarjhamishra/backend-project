@@ -385,6 +385,96 @@ const updateCoverImage = asyncHandler(async (req, res) => {
   .json(new ApiResponse(200, user, "Cover Image updated successfully"));
 });
 
+const getUserChannelProfile = asyncHandler (async (req, res) => {
+  const {username} = req.params
+
+  if(!username?.trim()){
+    throw new ApiError(400, "Username is missing");
+  }
+
+  // aggregation pipeline
+  const channel = await User.aggregate([
+    // first pipeline
+    {
+      $match: {
+        username: username?.toLowerCase()
+      }
+    },
+    // now got the username to match, and now we will lookup with this username in the subscription db
+    // second pipeline
+    // through this the channel will get the subscribers he has
+    {
+      $lookup: {
+        // in db everything became lowercase and plural
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers"
+      }
+    },
+
+    // third pipeline to find the number of channel this channel/user has subscribed
+    {
+      $lookup:{
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo"
+      }
+    },
+
+    // fourth pipeline to add additional feilds
+    {
+      $addFields:{
+        // count the all the subscribers of our channel
+        subscriberCount: {
+          // add $ bcoz it's a feild
+          $size: "$subscribers"
+        },
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo"
+        },
+        // if we haven't subsribed to the channel it will show "subscribe" button
+        // and if we have then it will show "subscribed button"
+        isSubscribed: {
+          // check if i am in the subscribers list of the channel or not
+          $cond: {
+            if: {$in : [req.user?._id, "$subscribers.subscriber"]},
+            then: true,
+            else: false
+          }
+        }
+      }
+    },
+
+    // another pipeline to project only selective feilds
+    {
+      // 1 means we want to send that data
+      $project: {
+        fullname: 1,
+        username: 1,
+        subscriberCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+        email: 1
+      }
+    }
+
+  ])
+  // this will return the output in array form
+
+  if(!channel?.length){
+    throw new ApiError(404, "channel does not exists")
+  }
+
+  return res
+  .status(200)
+  .json(new ApiResponse(200, channel[0], "user channel fetched successfully")) // only the first object is of use
+
+})
+
 export {
   registerUser,
   loginUser,
@@ -395,5 +485,6 @@ export {
   updateAccountDetails,
   generateAccessAndRefreshToken,
   updateAvatar,
-  updateCoverImage
+  updateCoverImage,
+  getUserChannelProfile
 };
