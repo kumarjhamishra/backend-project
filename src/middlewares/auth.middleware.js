@@ -9,7 +9,7 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
     // get the cookie from request
     // after or the code is to get the token from mobile appilcation as it's come in form of header from mobile application
     try {
-        const accessToken = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "")
+        const accessToken = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer", "")
     
         if(!accessToken){
             throw new ApiError(401, "You are not authenticated")

@@ -184,8 +184,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   const user = await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1,
       },
     },
     {
@@ -261,29 +261,33 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 });
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-
-  const userId = req.user?._id;
-  const user = await User.findById(userId);
-
-  if (!user) {
-    throw new ApiError(404, "User not found");
+  try {
+    const { currentPassword, newPassword } = req.body;
+  
+    const userId = req.user?._id;
+    const user = await User.findById(userId);
+  
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+  
+    // authenticate current password
+    const isPasswordCorrect = await user.isPasswordCorrect(currentPassword);
+  
+    if (!isPasswordCorrect) {
+      throw new ApiError(401, "Current password is incorrect");
+    }
+  
+    // change the password
+    user.password = newPassword;
+    await user.save({ validateBeforeSave: false });
+  
+    return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Password changed successfully"));
+  } catch (error) {
+    console.log(error)
   }
-
-  // authenticate current password
-  const isPasswordCorrect = await user.isPasswordCorrect(currentPassword);
-
-  if (!isPasswordCorrect) {
-    throw new ApiError(401, "Current password is incorrect");
-  }
-
-  // change the password
-  user.password = newPassword;
-  await user.save({ validateBeforeSave: false });
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, {}, "Password changed successfully"));
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
@@ -325,34 +329,38 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 });
 
 const updateAvatar = asyncHandler(async (req, res) => {
-  const avatarLocalPath = req.file?.path;
-
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar file is required");
-  }
-
-  // upload this file on cloudinary
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-
-  if (!avatar.url) {
-    throw new ApiError(400, "Error while uploading avatar on cloudinary");
-  }
-
-  const user = await findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set: {
-        avatar: avatar.url,
-      },
-    },
-    {
-      new: true,
+  try {
+    const avatarLocalPath = req.files?.path;
+  
+    if (!avatarLocalPath) {
+      throw new ApiError(400, "Avatar file is required");
     }
-  ).select("-password -refreshToken");
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, user, "Avatar updated successfully"));
+  
+    // upload this file on cloudinary
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+  
+    if (!avatar.url) {
+      throw new ApiError(400, "Error while uploading avatar on cloudinary");
+    }
+  
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+        $set: {
+          avatar: avatar.url,
+        },
+      },
+      {
+        new: true,
+      }
+    ).select("-password -refreshToken");
+  
+    return res
+      .status(200)
+      .json(new ApiResponse(200, user, "Avatar updated successfully"));
+  } catch (error) {
+    console.log(error)
+  }
 });
 
 const updateCoverImage = asyncHandler(async (req, res) => {
@@ -369,7 +377,7 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Error while uploading cover image on cloudinary");
   }
 
-  const user = await findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
       $set: {
@@ -477,59 +485,63 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 });
 
 const getWatchHistory = asyncHandler(async (req, res) => {
-  const user = await User.aggregate([
-    // first pipeline
-    {
-      $match: {
-        _id: new mongoose.Types.ObjectId(req.user._id),
+  try {
+    const user = await User.aggregate([
+      // first pipeline
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(req.user._id),
+        },
       },
-    },
-    // this pipeline to lookup for this id
-    {
-      $lookup: {
-        from: "videos",
-        localField: "watchHistory",
-        foreignField: "_id",
-        as: "watchHistory",
-        // nested pipeline
-        pipeline: [
-          {
-            $lookup: {
-              from: "users",
-              localField: "owner",
-              foreignField: "_id",
-              as: "owner",
-
-              pipeline: [
-                // to send the selective data
-                {
-                  $project: {
-                    fullname: 1,
-                    username: 1,
-                    avatar: 1
+      // this pipeline to lookup for this id
+      {
+        $lookup: {
+          from: "videos",
+          localField: "watchHistory",
+          foreignField: "_id",
+          as: "watchHistory",
+          // nested pipeline
+          pipeline: [
+            {
+              $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+  
+                pipeline: [
+                  // to send the selective data
+                  {
+                    $project: {
+                      fullname: 1,
+                      username: 1,
+                      avatar: 1
+                    }
                   }
-                }
-              ]
+                ]
+              },
             },
-          },
-
-          // this pipeline for improving the structure of the response which will be of owner in the form of array
-          {
-            $addFields: {
-              //overwriting existing feild owner
-              owner: {
-                $first: "$owner"
+  
+            // this pipeline for improving the structure of the response which will be of owner in the form of array
+            {
+              $addFields: {
+                //overwriting existing feild owner
+                owner: {
+                  $first: "$owner"
+                }
               }
             }
-          }
-        ]
+          ]
+        }
       }
-    }
-  ])
-
-  return res
-  .status(200)
-  .json(new ApiResponse(200, user[0].watchHistory, "watch history fetched successfully"))
+    ])
+  
+    return res
+    .status(200)
+    .json(new ApiResponse(200, user[0].watchHistory, "watch history fetched successfully"))
+  } catch (error) {
+    console.log(error)
+  }
 });
 
 export {
