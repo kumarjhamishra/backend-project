@@ -7,7 +7,7 @@ const videoSchema = new Schema({
         required: true,
     },
     thumbnail: {
-        type: String,
+        type: String, // cloudinary url
         required: true 
     },
     owner: {
@@ -16,7 +16,7 @@ const videoSchema = new Schema({
         required: true,
     },
     duration: {
-        type: Number, // cludinaru url
+        type: Number, // cludinary url
         required: true,
     },
     views: {

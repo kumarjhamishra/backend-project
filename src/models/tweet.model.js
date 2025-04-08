@@ -1,5 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 
+// like community post
 const tweetSchema = new Schema(
   {
     owner: {
