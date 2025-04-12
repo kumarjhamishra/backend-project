@@ -170,6 +170,36 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
 
 const getLikedVideos = asyncHandler(async (req, res) => {
     // TODO: get all liked videos
+
+    // get all the liked videos with this userId
+    const userId = req.user._id
+
+    if(!userId || !isValidObjectId(userId)){
+        throw new ApiError(400, "userId is required and in valid format")
+    }
+
+    // with this userId we only want those like documents whose video feild is not null
+    // and other feilds like comment and tweet are null
+    const likedVideos = await Like.find(
+        {
+            likedBy: userId,
+            video: {
+                $ne: null
+            }
+        }
+    ).populate("video")
+
+    if(!likedVideos){
+        throw new ApiError(400, "error while fetching liked videos")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, likedVideos, "liked videos fetched successfully")
+    )
+
+    
 })
 
 export {
