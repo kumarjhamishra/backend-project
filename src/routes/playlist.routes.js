@@ -14,16 +14,16 @@ const router = Router()
 
 router.use(verifyJWT)
 
-router.route("/").post(createPlaylist)
+router.route("/").post(createPlaylist) // tested
 
 router
 .route("/:playlistId")
-.get(getPlaylistById)
-.patch(updatePlaylist)
-.delete(deletePlaylist)
+.get(getPlaylistById) // tested
+.patch(updatePlaylist) // tested
+.delete(deletePlaylist) // tested
 
-router.route("/add/:videoId/:playlistId").patch(addVideoToPlaylist)
-router.route("/remove/:videoId/:playlistId").patch(removeVideoFromPlaylist)
-router.route("/user/:userId").get(getUserPlaylists)
+router.route("/add/:videoId/:playlistId").patch(addVideoToPlaylist) // tested
+router.route("/remove/:videoId/:playlistId").patch(removeVideoFromPlaylist) // tested
+router.route("/user/:userId").get(getUserPlaylists) // tested
 
 export default router

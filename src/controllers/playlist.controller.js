@@ -26,7 +26,7 @@ const createPlaylist = asyncHandler(async (req, res) => {
         }
     )
 
-    if(!existedPlaylist){
+    if(existedPlaylist){
         throw new ApiError(409, "user has already created a playlist with the same name")
     }
 

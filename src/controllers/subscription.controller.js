@@ -74,7 +74,8 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 
 // controller to return subscriber list of a channel
 const getUserChannelSubscribers = asyncHandler(async (req, res) => {
-  const { channelId } = req.params;
+  const { subscriberId } = req.params;
+  const channelId = subscriberId
 
   // validate the channel whose subscription we want to toggle
   if (!channelId || !isValidObjectId(channelId)) {
@@ -125,7 +126,8 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 });
 
 const getSubscribedChannels = asyncHandler(async (req, res) => {
-  const {subscriberId } = req.params
+  const {channelId } = req.params
+  const subscriberId = channelId;
 
   //TODO: with this subscriberId get all the channels that the subscriber has subscribed
 

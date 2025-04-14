@@ -170,7 +170,7 @@ const deleteTweet = asyncHandler(async (req, res) => {
         throw new ApiError(400, "userId is required and in correct format")
     }
 
-    const tweetId = req.params
+    const {tweetId} = req.params
     if(!tweetId){
         throw new ApiError(400, "tweetId is required")
     }

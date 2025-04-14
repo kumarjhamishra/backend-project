@@ -8,7 +8,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
     // TODO: get all vidoes based on query, sort, pagination
-    const {page = 1, limit = 10, query, sortBy = "createdAt", sortType = "desc", userId} = req.query
+    const {page = 1, limit = 10, query, sortBy = "createdAt", sortType = "desc", userId = req.user._id} = req.query
     
     if(!userId || !mongoose.isValidObjectId(userId)){
         throw new ApiError(400, "UserId is required and in correct format")
@@ -148,8 +148,12 @@ const updateVideo = asyncHandler(async (req, res) => {
 
     // title, description, videoFile, thumbnail anything can be updated
     const {title, description} = req.body
-    const videoFile = req.files?.videoFile[0]?.path
-    const thumbnail = req.files?.thumbnail[0]?.path
+    // const videoFile = req.files?.videoFile[0]?.path
+    // const thumbnail = req.files?.thumbnail[0]?.path
+
+    const videoFile = req.files && req.files.videoFile ? req.files.videoFile[0]?.path : undefined
+    const thumbnail = req.files && req.files.thumbnail ? req.files.thumbnail[0]?.path : undefined
+
 
     if(!title && !description && !videoFile && !thumbnail){
         throw new ApiError(400, "at least one feild is required")

@@ -3,7 +3,7 @@ import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
 import {Comment} from "../models/comment.model.js"
-import cookieParser from "cookie-parser";
+
 
 const getVideoComments = asyncHandler(async (req, res) => {
     //TODO: get all comments for a video
@@ -34,6 +34,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
                 from: "users",
                 localField: "owner",
                 foreignField: "_id",
+                as: "videoComments",
                 pipeline: [
                     // nested pipeline to select only some feilds
                     {
@@ -69,10 +70,11 @@ const addComment = asyncHandler(async (req, res) => {
     4. make a new document of comment with the user id and video id and save it in database
     */
 
-    const {channelId, videoId} = req.params
+    const userId = req.user._id
+    const {videoId} = req.params
     const {content} = req.body
 
-    if(!channelId || !videoId){
+    if(!userId || !videoId){
         throw new ApiError(400, "userId or videoId is not available")
     }
 
@@ -85,7 +87,7 @@ const addComment = asyncHandler(async (req, res) => {
         {
             content: content,
             video: videoId,
-            owner: channelId
+            owner: userId
         }
     )
 
